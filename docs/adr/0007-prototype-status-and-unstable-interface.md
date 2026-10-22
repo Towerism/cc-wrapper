@@ -24,8 +24,8 @@ None measured. This records the owner's instruction that the interface is not se
 Option A, with these working rules for the first version:
 
 - **Subcommands:** `ccx` (plain), `ccx local`, `ccx init`, `ccx shim`. Nothing else is added without a reason recorded here.
-- **Flags of `ccx local`:** `--sandbox`, `--dry-run` and, as a proposal, `--no-check` and `--no-shim`. They come directly after `local`. The first token not on this closed list ends `ccx` flag parsing, and `--` ends it explicitly. Everything after goes to `claude`.
-- **Config:** one TOML (plain-text configuration) file, keys under a `local` table. Unknown keys are an error, so a misspelling is caught.
+- **Flags of `ccx local`:** `--sandbox`, `--dry-run` and, as a proposal, `--no-check` and `--no-shim`. They come directly after `local`. The first token not on this closed list ends `ccx` flag parsing, and `--` ends it explicitly. Everything after goes to `claude`. Commander parses the `ccx` flags; its positional-option and pass-through settings are the proposed way to stop at the first unknown token (open question 28).
+- **Config:** one JSON file, keys under a `local` object. Unknown keys are an error, so a misspelling is caught.
 - **Changes:** a release may rename any of these. The changelog says what changed; no deprecation period is promised.
 
 ## Consequences

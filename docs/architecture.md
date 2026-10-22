@@ -11,7 +11,7 @@
 - `ccx` assumes nothing about the local server. The base URL, the credential file and the model name are supplied by the user. Before launching, it checks that the server answers.
 - Some servers reject a `system` message that is not first in the `messages` array, and Claude Code 2.1.299 sent one even with no hooks configured. `ccx` can start a small pass-through proxy, the shim, that rewrites such messages. The shim ships in this repository and runs only when needed.
 - A TypeScript library API, one of the last milestones, will let other command-line applications use Claude Code with a local model as a harness, configured by an optional config directory (see [Library API](#library-api-a-late-milestone)).
-- `ccx` is a TypeScript program for Node.js, built into one file with no runtime dependencies. It needs `claude` and a Node.js runtime, and nothing from the local server's own tooling ([ADR 0004](adr/0004-language-and-packaging.md)).
+- `ccx` is a TypeScript program for Node.js, built into one file with Commander, the command-line parsing library, as its only runtime dependency. It needs `claude` and a Node.js runtime, and nothing from the local server's own tooling ([ADR 0004](adr/0004-language-and-packaging.md)).
 
 ## Goals and non-goals
 
@@ -62,13 +62,16 @@ The candidate shape from the request is kept with two challenges, both recorded 
 
 ## Configuration model
 
-`ccx` reads one TOML (a plain-text configuration format) file, parsed by a library bundled into the built file, by default `~/.config/ccx/config.toml` (or under `XDG_CONFIG_HOME` when set). `ccx init` writes a template whose values are placeholders:
+`ccx` reads one JSON file, by default `~/.config/ccx/config.json` (or under `XDG_CONFIG_HOME` when set). JSON needs no library and fits the one-dependency decision ([ADR 0004](adr/0004-language-and-packaging.md)); it has no comments, so `ccx init` writes the keys with placeholder values and this document and `--dry-run` explain them. `ccx init` writes:
 
-```toml
-[local]
-base_url   = "<base-url>"
-model      = "<model-name>"
-token_file = "<path-to-token-file>"
+```json
+{
+  "local": {
+    "base_url": "<base-url>",
+    "model": "<model-name>",
+    "token_file": "<path-to-token-file>"
+  }
+}
 ```
 
 ### What the user supplies
@@ -297,7 +300,7 @@ Most logic is pure and sits at the bottom of the pyramid. There are six checks.
 
 | Layer | What it covers | Determinism |
 |---|---|---|
-| Unit | The shim's message rewrite as a pure function (leading system kept, later system turned to user, adjacent users merged, string and block content, tool results first, other fields untouched, repeated rewrite changes nothing, empty list, a trailing `system` message, a `system` message between `tool_use` and `tool_result` turns). Config and argument resolution as a pure function from config and arguments to environment and command line, including `--` handling, the rule for adding `--permission-mode`, the scrub list and `NO_PROXY` handling, and the redacted credential. | No I/O, no clock |
+| Unit | The shim's message rewrite as a pure function (leading system kept, later system turned to user, adjacent users merged, string and block content, tool results first, other fields untouched, repeated rewrite changes nothing, empty list, a trailing `system` message, a `system` message between `tool_use` and `tool_result` turns). Config and argument resolution as a pure function from config and arguments to environment and command line, including Commander's parsing of the `ccx` flags (called with an explicit argument list, so no process exit), `--` handling, the rule for adding `--permission-mode`, the scrub list and `NO_PROXY` handling, and the redacted credential. | No I/O, no clock |
 | Integration | The shim in front of a fake upstream on loopback with operating-system-chosen ports: the upstream sees the rewritten body, streamed chunks reach the client one by one, the status and headers pass through, a client disconnect closes the upstream request, and the shim exits when its input pipe closes. The reachability failures against a closed port the test itself opened and closed. `--dry-run` output compared with a stored expectation. | Ports from the operating system; chunk order enforced with events the fake upstream waits on, never with sleeps. Cases also cover the signal and exit-status behaviour in [The shim](#the-shim) |
 | Request recording | A real `claude -p` run against a throwaway listener that records the request body and headers: which roles appear and where, that the `Authorization` header is the configured credential, the model and output-token values, that `--permission-mode` is added only where the rule allows, and that with the shim in front no non-leading `system` message reaches the upstream. The test records the `claude` version and is run against more than one version. | The listener replies with a fixed message; the test environment is built from an allowlist, not inherited |
 | Headless skills listing | A `claude -p` run through `ccx` that asks which skills are available. It confirms that the config directory (shared or sandbox) is the one `ccx` meant. It is a quick check, and it cannot show what the user sees. | Temporary config directory with known skills; fixed reply from the listener |

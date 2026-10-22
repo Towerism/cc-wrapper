@@ -19,7 +19,7 @@ None measured. This is the owner's requirement. The sandbox mode's use of `CLAUD
 | Option | For | Against |
 |---|---|---|
 | A. A library over the same modules as the CLI, starting `claude` as a headless child | One implementation. Same version-support goal as the CLI. | The surface depends on `claude`'s headless output format |
-| B. A library built on a Claude agent SDK | Typed events from a maintained package | A runtime dependency and a second path to the backend, with its own version coupling |
+| B. A library built on a Claude agent SDK | Typed events from a maintained package | A second runtime dependency beyond Commander, and a second path to the backend, with its own version coupling |
 | C. No library; applications call the `ccx` command | Nothing new to build | Applications parse command output and cannot manage the shim's lifetime |
 
 ## Decision
