@@ -10,7 +10,7 @@
 - Local mode shares the normal Claude config directory, so skills, memory, permissions and `/resume` history are the same in both modes. A sandbox option uses a separate directory instead, for experimenting with the config itself.
 - `ccx` assumes nothing about the local server. The base URL, the credential file and the model name are supplied by the user. Before launching, it checks that the server answers.
 - Some servers reject a `system` message that is not first in the `messages` array, and Claude Code 2.1.299 sent one even with no hooks configured. `ccx` can start a small pass-through proxy, the shim, that rewrites such messages. The shim ships in this repository and runs only when needed.
-- `ccx` is one Python 3 standard-library file. It needs `claude` and nothing from the local server's own tooling.
+- `ccx` is a TypeScript program for Node.js, built into one file with no runtime dependencies. It needs `claude` and a Node.js runtime, and nothing from the local server's own tooling ([ADR 0004](adr/0004-language-and-packaging.md)).
 
 ## Goals and non-goals
 
@@ -19,7 +19,7 @@ Goals:
 1. Switch between Claude and a local model without duplicating projects, history or config.
 2. Make the local-model setup safe by default: no telemetry, no nonessential traffic, no auto-updates, a permission mode that does not hand safety decisions to a weaker model, and a compaction window sized for a smaller context.
 3. Keep every server detail in user configuration, and fail early with a clear message when the server is not there.
-4. Be easy to install and configure: one file to install, one command to write a config template, one command to see what will happen.
+4. Be easy to install and configure: one built file to install, one command to write a config template, one command to see what will happen.
 5. Stay easy to change. Record what is open instead of locking an interface in early.
 6. Work with any Claude Code version released in the last four weeks, and ideally older ones (owner decision, 2026-10-22). So `ccx` relies on as few `claude` behaviours as it can, and the recording tests print the `claude` version they ran against.
 
@@ -60,7 +60,7 @@ The candidate shape from the request is kept with two challenges, both recorded 
 
 ## Configuration model
 
-`ccx` reads one TOML (a plain-text configuration format) file, by default `~/.config/ccx/config.toml` (or under `XDG_CONFIG_HOME` when set). `ccx init` writes a template whose values are placeholders:
+`ccx` reads one TOML (a plain-text configuration format) file, parsed by a library bundled into the built file, by default `~/.config/ccx/config.toml` (or under `XDG_CONFIG_HOME` when set). `ccx init` writes a template whose values are placeholders:
 
 ```toml
 [local]
@@ -173,7 +173,7 @@ The model sees the hook or environment text as part of a user turn, not as a sys
 
 ### Where it lives
 
-The owner decided on 2026-10-22 that the shim ships in this repository ("the shim does ship in this repo"). It is the `ccx shim` subcommand of the single `ccx` file, which sits at the repository root, so installing `ccx` installs the shim and no second program or service is involved.
+The owner decided on 2026-10-22 that the shim ships in this repository ("the shim does ship in this repo"). It is the `ccx shim` subcommand of the single `ccx` file, which is built from the TypeScript sources under `src/` into the single file `dist/ccx`, so installing `ccx` installs the shim and no second program or service is involved.
 
 ### Process model with the shim
 
@@ -216,7 +216,7 @@ The probe has not been tried against a real server (open question 3).
 
 Rules for whoever implements it:
 
-- Bind to the loopback address only. Keep any path prefix that `local.base_url` has. Speak HTTP/1.1 and use chunked transfer or connection close, so streaming works under the standard library's HTTP server.
+- Bind to the loopback address only. Keep any path prefix that `local.base_url` has. Speak HTTP/1.1 and use chunked transfer or connection close, so streaming works under Node's built-in `node:http` module.
 - Never log request or response bodies, and never log headers.
 - Merging can move or drop `cache_control` markers. The rewrite keeps them on their original blocks.
 - Anthropic's message format wants a user turn's `tool_result` blocks first. When a converted `system` message sits between an assistant `tool_use` turn and the user turn with its results, the merge puts the converted text after the results. That rule comes from the API documentation and was not tested here.
@@ -240,7 +240,7 @@ Most logic is pure and sits at the bottom of the pyramid. There are six checks.
 | Integration | The shim in front of a fake upstream on loopback with operating-system-chosen ports: the upstream sees the rewritten body, streamed chunks reach the client one by one, the status and headers pass through, a client disconnect closes the upstream request, and the shim exits when its input pipe closes. The reachability failures against a closed port the test itself opened and closed. `--dry-run` output compared with a stored expectation. | Ports from the operating system; chunk order enforced with events the fake upstream waits on, never with sleeps. Cases also cover the signal and exit-status behaviour in [The shim](#the-shim) |
 | Request recording | A real `claude -p` run against a throwaway listener that records the request body and headers: which roles appear and where, that the `Authorization` header is the configured credential, the model and output-token values, that `--permission-mode` is added only where the rule allows, and that with the shim in front no non-leading `system` message reaches the upstream. The test records the `claude` version and is run against more than one version. | The listener replies with a fixed message; the test environment is built from an allowlist, not inherited |
 | Headless skills listing | A `claude -p` run through `ccx` that asks which skills are available. It confirms that the config directory (shared or sandbox) is the one `ccx` meant. It is a quick check, and it cannot show what the user sees. | Temporary config directory with known skills; fixed reply from the listener |
-| Interactive | A Python `pty` session that starts `claude` through `ccx`, handles the folder-trust prompt, sends `/skills` and `/resume`, and checks the screen text. | The test waits for expected screen text with a time limit instead of fixed sleeps; the environment is an allowlist; the config directory is temporary |
+| Interactive | A pseudo-terminal (pty) session, driven from the test runner, that starts `claude` through `ccx`, handles the folder-trust prompt, sends `/skills` and `/resume`, and checks the screen text. | The test waits for expected screen text with a time limit instead of fixed sleeps; the environment is an allowlist; the config directory is temporary |
 | Hygiene scan | The text scan in [Public-repo hygiene](#public-repo-hygiene) over added lines, commit messages and PR text. | A pure text scan; no network, no clock |
 
 The headless `claude -p` check and the interactive check are not interchangeable. In the earlier attempt a headless run listed a skill that the interactive session did not have. In this design pass the two also differed in ways that would hide a bug: headless runs skip the folder-trust dialog, and an inherited `CLAUDE_CODE_*` variable stopped interactive sessions from being saved at all while headless runs saved normally. Only the interactive run is what the user sees, so only it can settle a question about `/skills` or `/resume`.
