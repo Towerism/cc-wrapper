@@ -155,7 +155,7 @@ Sandbox mode is for trying changes to the config. It is not a security boundary.
 
 ### The problem
 
-Claude Code can send a message with `role: "system"` after the first position of the `messages` array. Some chat templates (Qwen's, in the earlier attempt) reject this with `System message must be at the beginning`, and the first request fails with a 500. The request-recording listener showed, in Claude Code 2.1.299 with an empty config directory and no hooks, a request whose roles were `user, system`, where the second message was an 8.5 KB environment block. After a cross-backend resume the roles were `user, system, assistant, user, system`. So the failure does not need a `SessionStart` hook, as the earlier attempt assumed. A hook's added context is one more source, not the only one. This is a single-version observation (see [ADR 0002](adr/0002-optional-shim-in-repo.md)).
+Claude Code can send a message with `role: "system"` after the first position of the `messages` array. Some chat templates (Qwen's, in the earlier attempt) reject this with `System message must be at the beginning`, and the first request fails with a 500. The request-recording listener showed, in Claude Code 2.1.299 with an empty config directory and no hooks, a request whose roles were `user, system`, where the second message was an 8.5 KB environment block. After a cross-backend resume the roles were `user, system, assistant, user, system`. So the failure does not need a `SessionStart` hook, as the earlier attempt assumed. A hook's added context is one more source, not the only one. The request shape is a single-version observation. The owner confirmed on 2026-10-22 that the rejection happens without hooks with two widely used Qwen models, `qwen3.8-27b` and `qwen3.6-35b` (see [ADR 0002](adr/0002-optional-shim-in-repo.md)); that confirmation is a report, not a test in this repository.
 
 ### What it does
 
@@ -251,7 +251,7 @@ Coverage is set by risk, not by line count. The shim's rewrite function is the h
 
 ## Public-repo hygiene
 
-This repository is public. Nothing committed, and no commit message, pull request text or issue text, may contain a home-directory path, a host name, a port number, an API key or token, or an email address, with these exceptions: `~`-relative paths to Claude Code's documented locations and this tool's own config and state directories, links under this owner's GitHub account and Claude Code's documentation sites, and the GitHub noreply addresses used for commit identities and the commit co-author trailer.
+This repository is public. Nothing committed, and no commit message, pull request text or issue text, may contain a home-directory path, a host name, a port number, an API key or token, or an email address, with these exceptions: `~`-relative paths to Claude Code's documented locations and this tool's own config and state directories, links under this owner's GitHub account and the `claude.com` and Claude Code documentation sites, and the GitHub noreply addresses used for commit identities and the commit co-author trailer.
 
 - Commits use the owner's GitHub noreply identity.
 - Every example value is a placeholder in angle brackets, never a real or plausible host, port or model name.

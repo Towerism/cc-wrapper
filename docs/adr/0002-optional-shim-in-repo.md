@@ -16,7 +16,7 @@ The earlier prototype hardcoded a default listening address for its shim. That i
 
 ## Evidence
 
-- The failure with a Qwen chat template and a hook that adds context is from the earlier attempt and was not reproduced here.
+- The failure with a Qwen chat template and a hook that adds context is from the earlier attempt and was not reproduced here. On 2026-10-22 the owner confirmed that the failure occurs without hooks with two widely used Qwen models, `qwen3.8-27b` and `qwen3.6-35b`. That is the owner's report, not a test in this repository.
 - In this design pass, Claude Code 2.1.299 sent a mid-array `system` message with an empty config directory and no hooks, and another after a cross-backend resume ([evidence record](../evidence/resume-across-backends.md)). One version only.
 - The probe and the per-session start and stop design are untested.
 

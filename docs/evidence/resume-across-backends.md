@@ -55,7 +55,7 @@ In the resumed requests the first `user` turn and the earlier `assistant` turn (
 ## Not verified
 
 - Resume between the real Anthropic service and a real local model.
-- Whether the mid-array `system` message appears in other Claude Code versions or only when the surrounding environment adds it.
+- Whether the mid-array `system` message appears in other Claude Code versions or only when the surrounding environment adds it. (The owner separately reported, without a test here, that two Qwen models reject it with no hooks configured.)
 - The names of the telemetry, nonessential-traffic, update and compaction-window variables on this version.
 - That a real server accepts the history Claude Code produced, including thinking blocks with signatures, tool-use identifiers and tool names from Model Context Protocol (MCP) servers.
 - Whether auto mode is the default in a clean environment.
