@@ -43,7 +43,6 @@ Tests load the file by path, so a single file does not block testing. The shim's
 - `ccx` works wherever Python 3.11 or later and `claude` are present. Older Pythons need a reader for TOML configuration files, which is outside the standard library before 3.11. Whether to support them is an open question.
 - No dependency to audit or update. No lockfile.
 - One file means one place to read the whole tool, and one place to conflict in changes. If it passes a size where that hurts, it becomes a package with the same entry point.
-- The name `ccx` can collide with another program of that name on the user's `PATH` (see [ADR 0006](0006-command-name-ccx.md)).
 
 ## Revisit when
 
