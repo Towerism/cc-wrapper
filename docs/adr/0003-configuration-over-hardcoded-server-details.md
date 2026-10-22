@@ -2,11 +2,17 @@
 
 **Status:** proposed, 2026-10-22. It becomes accepted when the owner approves it.
 
+The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
+
 The base URL, the credential file and the model name are values the user supplies. `ccx` has no default for them, or for a port, a model alias, a key location, an inference engine or a service manager. It checks that the server answers before it launches `claude`.
 
 ## Context
 
 The earlier attempt hardcoded a default listening address for its shim and was tied to one server setup. This repository is public and is meant to work with any server that serves an Anthropic-compatible `/v1/messages` endpoint. The one thing `ccx` may know about a server is the failure described in [ADR 0002](0002-optional-shim-in-repo.md).
+
+## Evidence
+
+None measured. This is a design choice that follows from the owner's rule that `ccx` assumes nothing about the server. The earlier prototype's hardcoded default address is the counter-example, from reading its source.
 
 ## Options
 

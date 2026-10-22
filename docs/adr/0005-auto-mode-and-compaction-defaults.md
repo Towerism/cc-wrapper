@@ -2,18 +2,21 @@
 
 **Status:** proposed, 2026-10-22. It becomes accepted when the owner approves it.
 
+The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
+
 `ccx local` passes `--permission-mode default` unless the user sets a mode. The compaction window and the maximum output tokens come from the user's config, and `ccx` warns when they are missing.
 
 ## Context
 
-Observed with Claude Code 2.1.299 and a throwaway listener (see [the evidence record](../evidence/resume-across-backends.md)):
-
-- At launch against a custom endpoint, the interactive status line showed auto mode on. With `--permission-mode default` it did not.
-- A notice said that auto mode's classifier requests go through the same endpoint as the session. In auto mode, the model the user points `claude` at is therefore also asked to decide which actions are safe. A weaker local model makes that decision less reliable, and the decision guards file and shell actions.
-- The first request had no user words in it yet and was about 87,000 characters, roughly 20,000 tokens at four characters per token (an estimate), dominated by 21 tool definitions.
-- `claude` asked for 32000 output tokens by default. With `CLAUDE_CODE_MAX_OUTPUT_TOKENS` set to 4096, it asked for 4096.
+Claude Code's own defaults matter here: it may start in auto mode against a custom endpoint, its first request is large, and it asks for a large output limit. The measurements are under Evidence.
 
 A local model's context is much smaller than Claude's, and `ccx` cannot know how large it is: the size depends on the server and its settings, which `ccx` does not assume ([ADR 0003](0003-configuration-over-hardcoded-server-details.md)).
+
+## Evidence
+
+- Auto mode showed as on at launch once, in an interactive run whose environment held other inherited `CLAUDE_CODE_*` variables, so the source of that default is not isolated. With `--permission-mode default` it did not show ([evidence record](../evidence/resume-across-backends.md)).
+- The first request of a headless run with a two-letter prompt was about 87,000 characters, roughly 20,000 tokens at four characters per token (an estimate), mostly 21 tool definitions.
+- `claude` asked for 32000 output tokens by default, and 4096 when `CLAUDE_CODE_MAX_OUTPUT_TOKENS` was 4096.
 
 ## Options
 
@@ -22,7 +25,7 @@ Permission mode:
 | Option | For | Against |
 |---|---|---|
 | A. Pass `default` unless configured | Every action is asked or follows the user's rules, and a weak model does not judge safety | More prompts than auto mode |
-| B. Leave `claude`'s default | No `ccx` opinion | Observed to be auto mode here, which hands safety checks to the local model |
+| B. Leave `claude`'s default | No `ccx` opinion | Seemed to be auto mode in one contaminated run; if so, it hands safety checks to the local model |
 | C. Always auto mode | Fewest prompts | The same safety concern, chosen on purpose |
 
 Compaction and output limits:
@@ -34,7 +37,7 @@ Compaction and output limits:
 
 ## Decision
 
-Permission mode: option A. `local.permission_mode` overrides it, and a `--permission-mode` or `--dangerously-skip-permissions` argument on the command line wins over both. Plain `ccx` never changes the mode.
+Permission mode: option A. `local.permission_mode` overrides it. `ccx` adds `--permission-mode <mode>` only when the first `claude` argument is absent or starts with `-` (so `ccx local mcp list` or `ccx local update` is untouched, because an option before a subcommand would break it) and only when no `--permission-mode`, `--permission-mode=<mode>` or `--dangerously-skip-permissions` appears before a bare `--`. That is the one place `ccx` reads `claude` arguments. Plain `ccx` never changes the mode.
 
 Limits: option 1. `local.compact_window` sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW` and `local.max_output_tokens` sets `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. When either is missing, `ccx` does not set the variable and prints one line on launch naming the key. The documentation gives guidance, not numbers: set the compaction window below the server's context length, leaving room for the output limit and for the roughly 20,000 tokens that the tool definitions and system text already take.
 

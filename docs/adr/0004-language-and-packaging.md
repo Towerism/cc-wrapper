@@ -2,11 +2,17 @@
 
 **Status:** proposed, 2026-10-22. It becomes accepted when the owner approves it.
 
+The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
+
 `ccx` is a single executable Python 3 file that uses only the standard library. Installing it means putting that file on `PATH`. It depends on `claude` and on nothing from the local server's own tooling.
 
 ## Context
 
-Requirements: work standalone with plain `claude` and bash or the Python 3 standard library; be easy to install and configure; include an HTTP proxy that streams (the shim); read a config file; be testable. The owner's machine already has a Python 3 that is newer than 3.11.
+Requirements: work standalone with plain `claude` and bash or the Python 3 standard library; be easy to install and configure; include an HTTP proxy that streams (the shim); read a config file; be testable.
+
+## Evidence
+
+None measured. The choice follows from the standalone constraint (only `claude` and the standard library) and from the earlier prototype being a single Python file that worked for the owner.
 
 ## Options
 
@@ -34,7 +40,7 @@ Tests load the file by path, so a single file does not block testing. The shim's
 
 ## Consequences
 
-- `ccx` works wherever Python 3.11 or later and `claude` are present. Older Pythons need a TOML reader, which is outside the standard library before 3.11. Whether to support them is an open question.
+- `ccx` works wherever Python 3.11 or later and `claude` are present. Older Pythons need a reader for TOML configuration files, which is outside the standard library before 3.11. Whether to support them is an open question.
 - No dependency to audit or update. No lockfile.
 - One file means one place to read the whole tool, and one place to conflict in changes. If it passes a size where that hurts, it becomes a package with the same entry point.
 - The name `ccx` can collide with another program of that name on the user's `PATH` (see [ADR 0006](0006-command-name-ccx.md)).

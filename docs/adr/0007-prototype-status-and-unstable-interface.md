@@ -8,6 +8,10 @@ Nothing about the command line, the config keys or the file layout is promised. 
 
 The owner described `ccx` as an exploratory prototype whose command-line surface is not settled, and asked for a design that is easy to change over one that locks an interface in early. Several choices are guesses until the tool is used: how to tell a `ccx` flag from a `claude` argument, whether `local` is the right word, whether one backend is enough.
 
+## Evidence
+
+None measured. This records the owner's instruction that the interface is not settled.
+
 ## Options
 
 | Option | For | Against |

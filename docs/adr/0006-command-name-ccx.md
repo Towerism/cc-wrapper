@@ -2,6 +2,8 @@
 
 **Status:** proposed, 2026-10-22. It becomes accepted when the owner approves it.
 
+The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
+
 The tool is installed as `ccx`, not `cc`. This record is for anyone who wonders why the command has that name or wants to change it.
 
 ## Context
@@ -9,6 +11,10 @@ The tool is installed as `ccx`, not `cc`. This record is for anyone who wonders 
 `cc` is the standard name of the C compiler on Unix-like systems, so a tool called `cc` earlier on `PATH` would shadow it and break builds. The owner chose `ccx` for that reason.
 
 While checking the name for this record, one more collision turned up: CalculiX, a finite-element solver, installs an executable called `ccx`. A user with CalculiX installed has to arrange `PATH` order or pick another name for this tool. This was found by recall, not by testing on a machine with CalculiX, so it is unverified.
+
+## Evidence
+
+None measured. The compiler collision is general knowledge about the name `cc`. The CalculiX collision is from recall and untested.
 
 ## Options
 
@@ -20,7 +26,7 @@ While checking the name for this record, one more collision turned up: CalculiX,
 
 ## Decision
 
-Option A, with the collision listed as an open question. The installation steps in [ADR 0004](0004-language-and-packaging.md) let the user choose the installed file name, so a different name costs one flag to the install command and no code change. Documentation refers to the command as `ccx` throughout.
+Option A, with the collision listed as an open question. The installation steps in [ADR 0004](0004-language-and-packaging.md) let the user choose the installed file name, so a different name changes only the destination file name in the install command and needs no code change. Documentation refers to the command as `ccx` throughout.
 
 ## Consequences
 

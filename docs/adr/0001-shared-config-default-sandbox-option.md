@@ -2,6 +2,8 @@
 
 **Status:** proposed, 2026-10-22. It becomes accepted when the owner approves it.
 
+The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
+
 `ccx local` runs `claude` with the normal config directory, so skills, memory, permissions and `/resume` history are shared with plain `ccx`. `ccx local --sandbox` uses a separate directory for experiments with the config itself. This is a prototype decision and can change (see [ADR 0007](0007-prototype-status-and-unstable-interface.md)).
 
 ## Context
@@ -9,6 +11,12 @@
 The goal is to switch between Claude and a local model without keeping two copies of projects, history or config. `claude` takes its config directory from `CLAUDE_CONFIG_DIR` and falls back to the standard location in the home directory. The backend comes from other environment variables, so the two choices are independent: any mode can use either directory.
 
 Observed with Claude Code 2.1.299 (see [the evidence record](../evidence/resume-across-backends.md)): one config directory and project resumed under two different backend environments. The headless `--resume` and the interactive `/resume` picker both worked, and the resumed request carried the earlier turns. Also observed: with `ANTHROPIC_AUTH_TOKEN` set and a real login in the config directory, `claude` sent the configured token and no stored login to the endpoint.
+
+## Evidence
+
+- Resume across two fake backends worked, headless and interactive, in Claude Code 2.1.299 ([evidence record](../evidence/resume-across-backends.md)). It does not cover the real Anthropic service or a real local model.
+- One headless run with a real login present showed the configured token, not the stored login, in the `Authorization` header. One version, one fake backend.
+- The sandbox leaks come from reading the `Towerism/claude-config` repository and the owner's report, not from a test here.
 
 ## Options
 
