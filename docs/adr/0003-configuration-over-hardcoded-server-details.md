@@ -4,7 +4,7 @@
 
 The interface is unstable ([ADR 0007](0007-prototype-status-and-unstable-interface.md)); undecided items are in [open-questions.md](../open-questions.md).
 
-The base URL, the credential file and the model name are values the user supplies. `ccx` has no default for them, or for a port, a model alias, a key location, an inference engine or a service manager. It checks that the server answers before it launches `claude`.
+The base URL, the credential source (a file or an environment variable) and the model name are values the user supplies. `ccx` has no default for them, or for a port, a model alias, a key location, an inference engine or a service manager. It checks that the server answers before it launches `claude`.
 
 ## Context
 
@@ -24,7 +24,7 @@ None measured. This is a design choice that follows from the owner's rule that `
 
 ## Decision
 
-Option A. To keep first use short, `ccx init` writes a config template whose values are placeholders, and `ccx local --dry-run` shows what will run before anything starts. The config file has three required keys: `local.base_url`, `local.model` and `local.token_file`.
+Option A. To keep first use short, `ccx init` writes a config template whose values are placeholders, and `ccx local --dry-run` shows what will run before anything starts. The config file has three required settings: `local.base_url`, `local.model` and one credential source, either `local.token_file` or `local.token_env` (the name of an environment variable), never both.
 
 The reachability check treats any HTTP answer as reachable. A refused connection, a timeout, a name that does not resolve and a TLS failure stop the launch with distinct messages that name the config key and the config file. The credential is read from the named file at launch and never stored, cached, logged or echoed.
 
@@ -32,7 +32,7 @@ The reachability check treats any HTTP answer as reachable. A refused connection
 
 - First use takes three edits, not zero. This is the price of not assuming.
 - Documentation and tests use placeholders everywhere, and the hygiene scan in [the architecture document](../architecture.md#public-repo-hygiene) checks it.
-- A server that needs no credential still needs a credential file in this version. The handling of such servers is an open question.
+- A server that needs no credential still needs a credential source in this version. The handling of such servers is an open question.
 - Tests that need a server use a fake one on a loopback address with an operating-system-chosen port.
 
 ## Revisit when

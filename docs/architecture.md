@@ -8,7 +8,7 @@
 
 - `ccx` picks the backend by setting environment variables for one `claude` process. A running session cannot change backend. To switch, exit and resume the session in the other mode. That workflow was checked only between two fake backends (see [Switching backends](#switching-backends-and-resuming)).
 - Local mode shares the normal Claude config directory, so skills, memory, permissions and `/resume` history are the same in both modes. A sandbox option uses a separate directory instead, for experimenting with the config itself.
-- `ccx` assumes nothing about the local server. The base URL, the credential file and the model name are supplied by the user. Before launching, it checks that the server answers.
+- `ccx` assumes nothing about the local server. The base URL, the credential source (a file or an environment variable) and the model name are supplied by the user. Before launching, it checks that the server answers.
 - Some servers reject a `system` message that is not first in the `messages` array, and Claude Code 2.1.299 sent one even with no hooks configured. `ccx` can start a small pass-through proxy, the shim, that rewrites such messages. The shim ships in this repository and runs only when needed.
 - A TypeScript library API, one of the last milestones, will let other command-line applications use Claude Code with a local model as a harness, configured by an optional config directory (see [Library API](#library-api-a-late-milestone)).
 - `ccx` is a TypeScript program for Node.js, built into one file with Commander, the command-line parsing library, as its only runtime dependency. It needs `claude` and a Node.js runtime, and nothing from the local server's own tooling ([ADR 0004](adr/0004-language-and-packaging.md)).
@@ -54,7 +54,7 @@ The candidate shape from the request is kept with two challenges, both recorded 
 ## Launch sequence for `ccx local`
 
 1. Read the config file. A missing file or a missing required key stops the launch and names the key and the file.
-2. Read the credential from the file named by `local.token_file`. A missing or unreadable file stops the launch and names the path. The credential is held in memory only (see [Secrets](#secrets)).
+2. Read the credential from the source the config names: the file in `local.token_file`, or the environment variable named in `local.token_env`. A missing or unreadable file, or an unset or empty variable, stops the launch and names the file path or the variable name. The credential is held in memory only (see [Secrets](#secrets)).
 3. Check that the server answers (see [Reachability check](#reachability-check)).
 4. Decide whether the shim is needed and, if so, start it (see [The shim](#the-shim)).
 5. Build the environment and the `claude` argument list (see [Inherited environment](#inherited-environment)).
@@ -80,7 +80,8 @@ The candidate shape from the request is kept with two challenges, both recorded 
 |---|---|---|---|
 | `local.base_url` | yes | Base URL of the server, as `claude` should see it | Launch stops |
 | `local.model` | yes | The model name the server expects | Launch stops |
-| `local.token_file` | yes | File holding the credential for the server | Launch stops |
+| `local.token_file` | one of the two | File holding the credential for the server | Launch stops if neither this nor `local.token_env` is set, or if both are |
+| `local.token_env` | one of the two | Name of an environment variable that holds the credential, used in place of `local.token_file` | As above |
 | `local.compact_window` | no | Value for `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, in tokens | The variable is not set, and `ccx` prints a one-line warning (see [ADR 0005](adr/0005-auto-mode-and-compaction-defaults.md)) |
 | `local.max_output_tokens` | no | Value for `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | The variable is not set, and `ccx` prints a one-line warning |
 | `local.permission_mode` | no | Permission mode to pass to `claude` | `default`, so auto mode is not used |
@@ -98,7 +99,7 @@ For `ccx local`, `ccx` sets these variables in the environment of the `claude` p
 | Variable | Value | Why |
 |---|---|---|
 | `ANTHROPIC_BASE_URL` | `local.base_url`, or the shim's address when the shim runs | Selects the backend |
-| `ANTHROPIC_AUTH_TOKEN` | The contents of `local.token_file` | The credential. Observed: with this set, `claude` sends it as the `Authorization` header and sends no `x-api-key` header |
+| `ANTHROPIC_AUTH_TOKEN` | The contents of `local.token_file`, or the value of the variable named by `local.token_env` | The credential. Observed: with this set, `claude` sends it as the `Authorization` header and sends no `x-api-key` header |
 | `ANTHROPIC_API_KEY` | Unset | Stops a stored key from taking priority |
 | `ANTHROPIC_MODEL` | `local.model` | The main model |
 | `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` | `local.model` | Any alias `claude` resolves also reaches the local model |
@@ -229,7 +230,12 @@ Rules for whoever implements it:
 
 ## Secrets
 
-The credential is read from the file named by `local.token_file` at launch, passed to `claude` through its environment, and never written anywhere by `ccx`. `--dry-run` shows it as the fixed text `<redacted>`, not a partial mask. The file's trailing newline is stripped, and `ccx` warns when the file can be read by its group or by others. Error messages name the file and never print its contents. `ccx` does not store, cache or log the credential, and the probe cache and the shim's logs hold none.
+The credential comes from exactly one source the user names: a file (`local.token_file`) or an environment variable (`local.token_env`). `ccx` reads it at launch, passes it to `claude` as `ANTHROPIC_AUTH_TOKEN`, and never writes it anywhere. The name of the variable is configuration like any other server detail, and `ccx` has no default for it; in particular it does not fall back to a variable that may hold a credential for another service.
+
+- **File.** The trailing newline is stripped, and `ccx` warns when the file can be read by its group or by others.
+- **Environment variable.** `ccx` removes the named variable from the environment it gives `claude`, so the credential appears once, as `ANTHROPIC_AUTH_TOKEN`, and not also under a second name. The variable stays in the user's shell, where it is as visible to other processes of the same user as any exported variable; a file avoids that until launch.
+
+`--dry-run` shows the credential as the fixed text `<redacted>`, not a partial mask, and says which source it used. Error messages name the file or the variable and never print its contents. `ccx` does not store, cache or log the credential, and the probe cache and the shim's logs hold none.
 
 `--dry-run` contacts nothing. It does not run the reachability check or the probe, so it reports the shim as `unknown (not probed)` unless a cached result exists. It prints the full `claude` argument list, which can include prompt text.
 
@@ -276,7 +282,7 @@ What the sketch commits to: creating a harness does the reachability check and t
 ### Constraints that follow from the rest of the design
 
 - A harness run has nobody to answer permission prompts, so the permission mode must be explicit in the configuration. It never falls back to auto mode ([ADR 0005](adr/0005-auto-mode-and-compaction-defaults.md)).
-- The credential is read from the named file when the harness is created and is never returned, logged or placed in an error.
+- The credential is read from the named file or environment variable when the harness is created and is never returned, logged or placed in an error.
 - The shim's lifetime belongs to the harness: it starts with the first run that needs it and stops on `close()` or when the application exits.
 - The version-support goal applies. The harness relies on as few `claude` behaviours as it can.
 

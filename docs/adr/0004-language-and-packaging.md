@@ -39,7 +39,7 @@ Option A. The owner chose "Node, built bundle".
   1. Get the built file. Either clone the repository, run `npm ci` and `npm run build`, or download a released `dist/ccx` if releases publish it (an open question).
   2. Put it on `PATH` as `ccx`, for example `install -m 755 dist/ccx <directory-on-PATH>`.
   3. Run `ccx init`. It writes `~/.config/ccx/config.json` (or under `XDG_CONFIG_HOME`) with placeholders, and refuses to overwrite an existing file.
-  4. Edit three values: `local.base_url`, `local.model`, `local.token_file`.
+  4. Edit three values: `local.base_url`, `local.model` and the credential source, `local.token_file` (or `local.token_env` in its place).
   5. Run `ccx local --dry-run` to see the environment and command line, with the credential shown as `<redacted>`.
   6. Run `ccx local`.
 
