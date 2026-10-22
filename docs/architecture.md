@@ -10,6 +10,7 @@
 - Local mode shares the normal Claude config directory, so skills, memory, permissions and `/resume` history are the same in both modes. A sandbox option uses a separate directory instead, for experimenting with the config itself.
 - `ccx` assumes nothing about the local server. The base URL, the credential file and the model name are supplied by the user. Before launching, it checks that the server answers.
 - Some servers reject a `system` message that is not first in the `messages` array, and Claude Code 2.1.299 sent one even with no hooks configured. `ccx` can start a small pass-through proxy, the shim, that rewrites such messages. The shim ships in this repository and runs only when needed.
+- A TypeScript library API, one of the last milestones, will let other command-line applications use Claude Code with a local model as a harness, configured by an optional config directory (see [Library API](#library-api-a-late-milestone)).
 - `ccx` is a TypeScript program for Node.js, built into one file with no runtime dependencies. It needs `claude` and a Node.js runtime, and nothing from the local server's own tooling ([ADR 0004](adr/0004-language-and-packaging.md)).
 
 ## Goals and non-goals
@@ -21,7 +22,8 @@ Goals:
 3. Keep every server detail in user configuration, and fail early with a clear message when the server is not there.
 4. Be easy to install and configure: one built file to install, one command to write a config template, one command to see what will happen.
 5. Stay easy to change. Record what is open instead of locking an interface in early.
-6. Work with any Claude Code version released in the last four weeks, and ideally older ones (owner decision, 2026-10-22). So `ccx` relies on as few `claude` behaviours as it can, and the recording tests print the `claude` version they ran against.
+6. Later, offer a TypeScript library API so that a command-line application can use Claude Code with a local model as a harness.
+7. Work with any Claude Code version released in the last four weeks, and ideally older ones (owner decision, 2026-10-22). So `ccx` relies on as few `claude` behaviours as it can, and the recording tests print the `claude` version they ran against.
 
 Non-goals:
 
@@ -229,6 +231,65 @@ The credential is read from the file named by `local.token_file` at launch, pass
 `--dry-run` contacts nothing. It does not run the reachability check or the probe, so it reports the shim as `unknown (not probed)` unless a cached result exists. It prints the full `claude` argument list, which can include prompt text.
 
 Known exposure: the credential sits in `claude`'s environment, so every shell command and hook that `claude` runs inherits it, and a command that prints the environment would put it in the session transcript. Because the config directory is shared, such a transcript could later be resumed in a plain session. A way to avoid this, giving `claude` a dummy token and letting the shim add the real one, is possible when the shim runs and is recorded as a trade-off in the open questions.
+
+## Library API (a late milestone)
+
+**Status:** proposed. The owner asked for it on 2026-10-22 and called it "one of the last milestones". Nothing below is built, and the surface is a sketch that will change ([ADR 0008](adr/0008-library-api-late-milestone.md)).
+
+### Purpose
+
+A command-line application written in TypeScript should be able to use Claude Code, running against a local model, as its agent harness: send it a task, receive its progress and its result, and shut it down, without the application reimplementing backend selection, the reachability check, the shim or the environment rules described above. The harness is fully configured by an optional config directory, so an application can ship its own skills, settings and backend configuration and not touch the user's own Claude setup.
+
+### How it relates to the CLI
+
+The API and the CLI share the same modules (config, environment building, reachability check, probe, shim, launching `claude`). The CLI is a thin front end over them. The source is split by job for this reason ([ADR 0004](adr/0004-language-and-packaging.md)).
+
+### The optional config directory
+
+- **Given.** The harness uses that directory as the Claude config directory (`CLAUDE_CONFIG_DIR`, and `CLAUDE_HOME` for hooks that read it) and reads its backend settings from a `ccx` config file inside it, instead of the user's normal locations. Nothing in the user's own config is read or written. This is the sandbox mode's mechanism, made the way an application configures itself, so the sandbox's known leaks apply: the fallback path in a deployed global `CLAUDE.md`, and project files in the working directory.
+- **Omitted.** The harness behaves like `ccx local`: the user's normal config, shared with their own sessions.
+
+Where the backend settings live relative to Claude's own files, and what happens when the directory lacks them, is an open question.
+
+### A sketch of the surface
+
+Illustrative only. Every value is a placeholder, and names, options and event shapes are undecided.
+
+```ts
+import { createHarness } from "ccx";
+
+const harness = await createHarness({ configDir: "<config-dir>" }); // optional
+const run = harness.run({ prompt: "<task>", cwd: "<working-dir>" });
+
+for await (const event of run) {
+  // progress events, shaped by what the headless claude output provides
+}
+const result = await run.result;
+await harness.close(); // stops the shim, if one was started
+```
+
+What the sketch commits to: creating a harness does the reachability check and the shim decision once; a run streams events and ends with a result; closing the harness stops anything it started. What it leaves out on purpose: sessions and resuming, permission handling, tool and Model Context Protocol (MCP) configuration, cancellation and error types.
+
+### Constraints that follow from the rest of the design
+
+- A harness run has nobody to answer permission prompts, so the permission mode must be explicit in the configuration. It never falls back to auto mode ([ADR 0005](adr/0005-auto-mode-and-compaction-defaults.md)).
+- The credential is read from the named file when the harness is created and is never returned, logged or placed in an error.
+- The shim's lifetime belongs to the harness: it starts with the first run that needs it and stops on `close()` or when the application exits.
+- The version-support goal applies. The harness relies on as few `claude` behaviours as it can.
+
+### Tests for this milestone
+
+Contract tests on the public types; a test that a run with an application-supplied config directory leaves the user's real config untouched; and the request-recording test against a harness run, to check the same environment and header rules as the CLI.
+
+## Milestones (proposed order)
+
+1. The CLI: `ccx`, `ccx local`, `ccx init`, `ccx local --dry-run`, the reachability check and the environment rules.
+2. The shim, the probe and the process model.
+3. Sandbox mode.
+4. The recording and interactive tests and the hygiene scan as a script.
+5. The library API.
+
+The order is a proposal. Only the API's place near the end is the owner's request.
 
 ## Test strategy
 
